@@ -379,11 +379,7 @@ def buffers_to_array(
     except TypeError:
         validity_buff = None
     try:
-        offset_info = buffers["offsets"]
-        if isinstance(offset, tuple):
-            offset_buff, offset_dtype = offset_info
-        else:
-            offset_buff = None
+        offset_buff, offset_dtype = buffers["offsets"]
     except TypeError:
         offset_buff = None
 
@@ -438,7 +434,7 @@ def buffers_to_array(
 def validity_buffer_from_mask(
     validity_buff: BufferObject,
     validity_dtype: Dtype,
-    describe_null: ColumnNullType,
+    describe_null: tuple[ColumnNullType, int],
     length: int,
     offset: int = 0,
     allow_copy: bool = True,
@@ -455,6 +451,7 @@ def validity_buffer_from_mask(
         endianness)``.
     describe_null : ColumnNullType
         Null representation the column dtype uses
+        as a tuple ``(kind, value)``
     length : int
         The number of values in the array.
     offset : int, default: 0
@@ -467,7 +464,7 @@ def validity_buffer_from_mask(
     -------
     pa.Buffer
     """
-    null_kind, sentinel_val = describe_null.name, describe_null.value
+    null_kind, sentinel_val = describe_null
     validity_kind, _, _, _ = validity_dtype
     assert validity_kind == DtypeKind.BOOL
 
@@ -515,7 +512,7 @@ def validity_buffer_from_mask(
 def validity_buffer_nan_sentinel(
     data_pa_buffer: BufferObject,
     data_type: Dtype,
-    describe_null: ColumnNullType,
+    describe_null: tuple[ColumnNullType, int],
     length: int,
     offset: int = 0,
     allow_copy: bool = True,
@@ -532,6 +529,7 @@ def validity_buffer_nan_sentinel(
         endianness)``.
     describe_null : ColumnNullType
         Null representation the column dtype uses
+        as a tuple ``(kind, value)``
     length : int
         The number of values in the array.
     offset : int, default: 0
@@ -546,7 +544,7 @@ def validity_buffer_nan_sentinel(
     """
     kind, bit_width, _, _ = data_type
     data_dtype = map_date_type(data_type)
-    null_kind, sentinel_val = describe_null.name, describe_null.value
+    null_kind, sentinel_val = describe_null
 
     # Check for float NaN values
     if null_kind == ColumnNullType.USE_NAN:

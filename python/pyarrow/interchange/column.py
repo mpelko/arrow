@@ -323,15 +323,12 @@ class _PyArrowColumn:
             _, f_string = indices_dtype_tuple
             return kind, bit_width, f_string, Endianness.NATIVE
         else:
-            arr = self._col
-            indices_dtype = arr.indices.type
-            indices_dtype_tuple = _PYARROW_KINDS.get(indices_dtype)
-            if indices_dtype_tuple is None:
+            optional_kind, f_string = _PYARROW_KINDS.get(dtype, (None, ""))
+            if optional_kind is None:
                 raise ValueError(
-                    f"Data type {indices_dtype} not supported by interchange protocol"
+                    f"Data type {dtype} not supported by interchange protocol"
                 )
-            kind, f_string = indices_dtype_tuple
-
+            kind = optional_kind
             return kind, bit_width, f_string, Endianness.NATIVE
 
     @property
@@ -523,7 +520,6 @@ class _PyArrowColumn:
                 "This column has a fixed-length dtype so "
                 "it does not have an offsets buffer"
             )
-
         # Define the dtype of the returned buffer
         dtype = self._col.type
         if pa.types.is_large_string(dtype):
