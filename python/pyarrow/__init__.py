@@ -60,7 +60,7 @@ except ImportError:
     except ImportError:
         __version__ = ""
 
-import pyarrow.lib as _lib
+import pyarrow.lib as _lib  # type: ignore[import-not-found]
 from pyarrow.lib import (
     BuildInfo,
     CppBuildInfo,

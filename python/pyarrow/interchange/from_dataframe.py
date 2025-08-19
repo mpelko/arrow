@@ -454,8 +454,7 @@ def validity_buffer_from_mask(
         Dtype description as a tuple ``(kind, bit-width, format string,
         endianness)``.
     describe_null : ColumnNullType
-        Null representation the column dtype uses,
-        as a tuple ``(kind, value)``
+        Null representation the column dtype uses
     length : int
         The number of values in the array.
     offset : int, default: 0
@@ -468,7 +467,7 @@ def validity_buffer_from_mask(
     -------
     pa.Buffer
     """
-    null_kind, sentinel_val = describe_null
+    null_kind, sentinel_val = describe_null.name, describe_null.value
     validity_kind, _, _, _ = validity_dtype
     assert validity_kind == DtypeKind.BOOL
 
@@ -499,7 +498,7 @@ def validity_buffer_from_mask(
             )
 
         if sentinel_val == 1:
-            mask_bool = pc.invert(mask_bool)
+            mask_bool = pc.invert(mask_bool)  # type: ignore  # (missing compute.pyi stubs)
 
         return mask_bool.buffers()[1]
 
@@ -532,8 +531,7 @@ def validity_buffer_nan_sentinel(
         Dtype description as a tuple ``(kind, bit-width, format string,
         endianness)``.
     describe_null : ColumnNullType
-        Null representation the column dtype uses,
-        as a tuple ``(kind, value)``
+        Null representation the column dtype uses
     length : int
         The number of values in the array.
     offset : int, default: 0
@@ -548,7 +546,7 @@ def validity_buffer_nan_sentinel(
     """
     kind, bit_width, _, _ = data_type
     data_dtype = map_date_type(data_type)
-    null_kind, sentinel_val = describe_null
+    null_kind, sentinel_val = describe_null.name, describe_null.value
 
     # Check for float NaN values
     if null_kind == ColumnNullType.USE_NAN:
@@ -571,8 +569,8 @@ def validity_buffer_nan_sentinel(
                 [None, data_pa_buffer],
                 offset=offset,
             )
-            mask = pc.is_nan(pyarrow_data)
-            mask = pc.invert(mask)
+            mask = pc.is_nan(pyarrow_data)  # type: ignore  # (missing compute.pyi stubs)
+            mask = pc.invert(mask)  # type: ignore  # (missing compute.pyi stubs)
             return mask.buffers()[1]
 
     # Check for sentinel values
@@ -590,8 +588,8 @@ def validity_buffer_nan_sentinel(
         pyarrow_data = pa.Array.from_buffers(
             sentinel_dtype, length, [None, data_pa_buffer], offset=offset
         )
-        sentinel_arr = pc.equal(pyarrow_data, sentinel_val)
-        mask_bool = pc.invert(sentinel_arr)
+        sentinel_arr = pc.equal(pyarrow_data, sentinel_val)  # type: ignore  # (missing compute.pyi stubs)
+        mask_bool = pc.invert(sentinel_arr)  # type: ignore  # (missing compute.pyi stubs)
         return mask_bool.buffers()[1]
 
     elif null_kind == ColumnNullType.NON_NULLABLE:
