@@ -491,7 +491,7 @@ def validity_buffer_from_mask(
             )
 
         if sentinel_val == 1:
-            mask_bool = pc.invert(mask_bool)  # type: ignore  # (missing compute.pyi stubs)
+            mask_bool = pc.invert(mask_bool)  # type: ignore  # (missing stubs)
 
         return mask_bool.buffers()[1]
 
@@ -563,8 +563,8 @@ def validity_buffer_nan_sentinel(
                 [None, data_pa_buffer],
                 offset=offset,
             )
-            mask = pc.is_nan(pyarrow_data)  # type: ignore  # (missing compute.pyi stubs)
-            mask = pc.invert(mask)  # type: ignore  # (missing compute.pyi stubs)
+            mask = pc.is_nan(pyarrow_data)  # type: ignore  # (missing stubs)
+            mask = pc.invert(mask)  # type: ignore  # (missing stubs)
             return mask.buffers()[1]
 
     # Check for sentinel values
@@ -582,8 +582,8 @@ def validity_buffer_nan_sentinel(
         pyarrow_data = pa.Array.from_buffers(
             sentinel_dtype, length, [None, data_pa_buffer], offset=offset
         )
-        sentinel_arr = pc.equal(pyarrow_data, sentinel_val)  # type: ignore  # (missing compute.pyi stubs)
-        mask_bool = pc.invert(sentinel_arr)  # type: ignore  # (missing compute.pyi stubs)
+        sentinel_arr = pc.equal(pyarrow_data, sentinel_val)  # type: ignore
+        mask_bool = pc.invert(sentinel_arr)  # type: ignore
         return mask_bool.buffers()[1]
 
     elif null_kind == ColumnNullType.NON_NULLABLE:
