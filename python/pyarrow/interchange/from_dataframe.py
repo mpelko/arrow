@@ -333,7 +333,7 @@ def buffers_to_array(
     buffers: ColumnBuffers,
     data_type: Tuple[DtypeKind, int, str, str],
     length: int,
-    describe_null: ColumnNullType,
+    describe_null: tuple[ColumnNullType, int],
     offset: int = 0,
     allow_copy: bool = True,
 ) -> pa.Array:
@@ -370,24 +370,19 @@ def buffers_to_array(
     the returned PyArrow array is being used.
     """
     data_buff, _ = buffers["data"]
-    try:
-        validity_info = buffers["validity"]
-        if isinstance(validity_info, tuple):
-            validity_buff, validity_dtype = validity_info
-        else:
-            validity_buff = None
-    except TypeError:
-        validity_buff = None
-    try:
-        offset_buff, offset_dtype = buffers["offsets"]
-    except TypeError:
-        offset_buff = None
+    validity_buff, validity_dtype = (
+        buffers["validity"] if buffers["validity"] else (None, None)
+    )
+    offset_buff, offset_dtype = (
+        buffers["offsets"] if buffers["offsets"] else (None, None)
+    )
 
     # Construct a pyarrow Buffer
     data_pa_buffer = pa.foreign_buffer(data_buff.ptr, data_buff.bufsize, base=data_buff)
 
     # Construct a validity pyarrow Buffer, if applicable
     if validity_buff:
+        assert validity_dtype is not None
         validity_pa_buff = validity_buffer_from_mask(
             validity_buff, validity_dtype, describe_null, length, offset, allow_copy
         )
@@ -400,6 +395,7 @@ def buffers_to_array(
     data_dtype = map_date_type(data_type)
 
     if offset_buff:
+        assert offset_dtype is not None
         _, offset_bit_width, _, _ = offset_dtype
         # If an offset buffer exists, construct an offset pyarrow Buffer
         # and add it to the construction of an array
