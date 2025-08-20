@@ -27,6 +27,7 @@ from typing import (
 )
 
 import sys
+
 if sys.version_info >= (3, 8):
     from typing import TypedDict
 else:
@@ -314,14 +315,20 @@ class _PyArrowColumn:
             kind = DtypeKind.CATEGORICAL
             arr = self._col
             indices_dtype = arr.indices.type
-            _, f_string = _PYARROW_KINDS.get(indices_dtype)
+            indices_dtype_tuple = _PYARROW_KINDS.get(indices_dtype)
+            if indices_dtype_tuple is None:
+                raise ValueError(
+                    f"Data type {indices_dtype} not supported by interchange protocol"
+                )
+            _, f_string = indices_dtype_tuple
             return kind, bit_width, f_string, Endianness.NATIVE
         else:
-            kind, f_string = _PYARROW_KINDS.get(dtype, (None, None))
-            if kind is None:
+            optional_kind, f_string = _PYARROW_KINDS.get(dtype, (None, ""))
+            if optional_kind is None:
                 raise ValueError(
-                    f"Data type {dtype} not supported by interchange protocol")
-
+                    f"Data type {dtype} not supported by interchange protocol"
+                )
+            kind = optional_kind
             return kind, bit_width, f_string, Endianness.NATIVE
 
     @property
@@ -350,8 +357,7 @@ class _PyArrowColumn:
         arr = self._col
         if not pa.types.is_dictionary(arr.type):
             raise TypeError(
-                "describe_categorical only works on a column with "
-                "categorical dtype!"
+                "describe_categorical only works on a column with categorical dtype!"
             )
 
         return {
@@ -379,7 +385,7 @@ class _PyArrowColumn:
             return ColumnNullType.USE_BITMASK, 0
 
     @property
-    def null_count(self) -> int:
+    def null_count(self) -> int | None:
         """
         Number of null elements, if known.
 
@@ -394,7 +400,7 @@ class _PyArrowColumn:
         """
         The metadata for the column. See `DataFrame.metadata` for more details.
         """
-        pass
+        return {}
 
     def num_chunks(self) -> int:
         """
@@ -402,9 +408,7 @@ class _PyArrowColumn:
         """
         return 1
 
-    def get_chunks(
-        self, n_chunks: Optional[int] = None
-    ) -> Iterable[_PyArrowColumn]:
+    def get_chunks(self, n_chunks: Optional[int] = None) -> Iterable[_PyArrowColumn]:
         """
         Return an iterator yielding the chunks.
 
@@ -418,9 +422,7 @@ class _PyArrowColumn:
             array = self._col
             i = 0
             for start in range(0, chunk_size * n_chunks, chunk_size):
-                yield _PyArrowColumn(
-                    array.slice(start, chunk_size), self._allow_copy
-                )
+                yield _PyArrowColumn(array.slice(start, chunk_size), self._allow_copy)
                 i += 1
         else:
             yield self
@@ -484,8 +486,7 @@ class _PyArrowColumn:
         n = len(array.buffers())
         if n == 2:
             return _PyArrowBuffer(array.buffers()[1]), dtype
-        elif n == 3:
-            return _PyArrowBuffer(array.buffers()[2]), dtype
+        return _PyArrowBuffer(array.buffers()[2]), dtype
 
     def _get_validity_buffer(self) -> Tuple[_PyArrowBuffer, Any]:
         """
@@ -502,8 +503,8 @@ class _PyArrowColumn:
             return _PyArrowBuffer(buff), dtype
         else:
             raise NoBufferPresent(
-                "There are no missing values so "
-                "does not have a separate mask")
+                "There are no missing values so does not have a separate mask"
+            )
 
     def _get_offsets_buffer(self) -> Tuple[_PyArrowBuffer, Any]:
         """
@@ -519,11 +520,10 @@ class _PyArrowColumn:
                 "This column has a fixed-length dtype so "
                 "it does not have an offsets buffer"
             )
-        elif n == 3:
-            # Define the dtype of the returned buffer
-            dtype = self._col.type
-            if pa.types.is_large_string(dtype):
-                dtype = (DtypeKind.INT, 64, "l", Endianness.NATIVE)
-            else:
-                dtype = (DtypeKind.INT, 32, "i", Endianness.NATIVE)
-            return _PyArrowBuffer(array.buffers()[1]), dtype
+        # Define the dtype of the returned buffer
+        dtype = self._col.type
+        if pa.types.is_large_string(dtype):
+            dtype = (DtypeKind.INT, 64, "l", Endianness.NATIVE)
+        else:
+            dtype = (DtypeKind.INT, 32, "i", Endianness.NATIVE)
+        return _PyArrowBuffer(array.buffers()[1]), dtype
