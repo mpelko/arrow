@@ -22,7 +22,6 @@ from typing import (
     Any,
     Dict,
     Iterable,
-    Optional,
     Tuple,
 )
 
@@ -122,13 +121,13 @@ class ColumnBuffers(TypedDict):
     # first element is a buffer containing mask values indicating missing data;
     # second element is the mask value buffer's associated dtype.
     # None if the null representation is not a bit or byte mask
-    validity: Optional[Tuple[_PyArrowBuffer, Dtype]]
+    validity: Tuple[_PyArrowBuffer, Dtype] | None
 
     # first element is a buffer containing the offset values for
     # variable-size binary data (e.g., variable-length strings);
     # second element is the offsets buffer's associated dtype.
     # None if the data buffer does not have an associated offsets buffer
-    offsets: Optional[Tuple[_PyArrowBuffer, Dtype]]
+    offsets: Tuple[_PyArrowBuffer, Dtype] | None
 
 
 class CategoricalDescription(TypedDict):
@@ -139,7 +138,7 @@ class CategoricalDescription(TypedDict):
     is_dictionary: bool
     # Python-level only (e.g. ``{int: str}``).
     # None if not a dictionary-style categorical.
-    categories: Optional[_PyArrowColumn]
+    categories: _PyArrowColumn | None
 
 
 class Endianness:
@@ -314,13 +313,20 @@ class _PyArrowColumn:
             kind = DtypeKind.CATEGORICAL
             arr = self._col
             indices_dtype = arr.indices.type
-            _, f_string = _PYARROW_KINDS.get(indices_dtype)
+            indices_dtype_tuple = _PYARROW_KINDS.get(indices_dtype)
+            if indices_dtype_tuple is None:
+                raise ValueError(
+                    f"Data type {indices_dtype} not supported by interchange protocol"
+                )
+            _, f_string = indices_dtype_tuple
             return kind, bit_width, f_string, Endianness.NATIVE
         else:
-            kind, f_string = _PYARROW_KINDS.get(dtype, (None, None))
-            if kind is None:
+            optional_kind, f_string = _PYARROW_KINDS.get(dtype, (None, ""))
+            if optional_kind is None:
                 raise ValueError(
-                    f"Data type {dtype} not supported by interchange protocol")
+                    f"Data type {dtype} not supported by interchange protocol"
+                )
+            kind = optional_kind
 
             return kind, bit_width, f_string, Endianness.NATIVE
 
@@ -379,7 +385,7 @@ class _PyArrowColumn:
             return ColumnNullType.USE_BITMASK, 0
 
     @property
-    def null_count(self) -> int:
+    def null_count(self) -> int | None:
         """
         Number of null elements, if known.
 
@@ -394,7 +400,7 @@ class _PyArrowColumn:
         """
         The metadata for the column. See `DataFrame.metadata` for more details.
         """
-        pass
+        return {}
 
     def num_chunks(self) -> int:
         """
@@ -403,7 +409,7 @@ class _PyArrowColumn:
         return 1
 
     def get_chunks(
-        self, n_chunks: Optional[int] = None
+        self, n_chunks: int | None = None
     ) -> Iterable[_PyArrowColumn]:
         """
         Return an iterator yielding the chunks.
@@ -486,6 +492,11 @@ class _PyArrowColumn:
             return _PyArrowBuffer(array.buffers()[1]), dtype
         elif n == 3:
             return _PyArrowBuffer(array.buffers()[2]), dtype
+        else:
+            raise ValueError(
+                "Column data buffer must have 2 or 3 buffers, "
+                f"but has {n} buffers: {array.buffers()}"
+            )
 
     def _get_validity_buffer(self) -> Tuple[_PyArrowBuffer, Any]:
         """
@@ -505,7 +516,7 @@ class _PyArrowColumn:
                 "There are no missing values so "
                 "does not have a separate mask")
 
-    def _get_offsets_buffer(self) -> Tuple[_PyArrowBuffer, Any]:
+    def _get_offsets_buffer(self) -> Tuple[_PyArrowBuffer, Any] | None:
         """
         Return the buffer containing the offset values for variable-size binary
         data (e.g., variable-length strings) and the buffer's associated dtype.
@@ -527,3 +538,4 @@ class _PyArrowColumn:
             else:
                 dtype = (DtypeKind.INT, 32, "i", Endianness.NATIVE)
             return _PyArrowBuffer(array.buffers()[1]), dtype
+        return None
