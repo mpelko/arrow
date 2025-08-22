@@ -22,7 +22,6 @@ from typing import (
     Any,
     Dict,
     Iterable,
-    Optional,
     Tuple,
 )
 
@@ -122,13 +121,13 @@ class ColumnBuffers(TypedDict):
     # first element is a buffer containing mask values indicating missing data;
     # second element is the mask value buffer's associated dtype.
     # None if the null representation is not a bit or byte mask
-    validity: Optional[Tuple[_PyArrowBuffer, Dtype]]
+    validity: Tuple[_PyArrowBuffer, Dtype] | None
 
     # first element is a buffer containing the offset values for
     # variable-size binary data (e.g., variable-length strings);
     # second element is the offsets buffer's associated dtype.
     # None if the data buffer does not have an associated offsets buffer
-    offsets: Optional[Tuple[_PyArrowBuffer, Dtype]]
+    offsets: Tuple[_PyArrowBuffer, Dtype] | None
 
 
 class CategoricalDescription(TypedDict):
@@ -139,7 +138,7 @@ class CategoricalDescription(TypedDict):
     is_dictionary: bool
     # Python-level only (e.g. ``{int: str}``).
     # None if not a dictionary-style categorical.
-    categories: Optional[_PyArrowColumn]
+    categories: _PyArrowColumn | None
 
 
 class Endianness:
@@ -410,7 +409,7 @@ class _PyArrowColumn:
         return 1
 
     def get_chunks(
-        self, n_chunks: Optional[int] = None
+        self, n_chunks: int | None = None
     ) -> Iterable[_PyArrowColumn]:
         """
         Return an iterator yielding the chunks.
@@ -517,7 +516,7 @@ class _PyArrowColumn:
                 "There are no missing values so "
                 "does not have a separate mask")
 
-    def _get_offsets_buffer(self) -> Tuple[_PyArrowBuffer, Any]:
+    def _get_offsets_buffer(self) -> Tuple[_PyArrowBuffer, Any] | None:
         """
         Return the buffer containing the offset values for variable-size binary
         data (e.g., variable-length strings) and the buffer's associated dtype.
@@ -539,8 +538,4 @@ class _PyArrowColumn:
             else:
                 dtype = (DtypeKind.INT, 32, "i", Endianness.NATIVE)
             return _PyArrowBuffer(array.buffers()[1]), dtype
-        else:
-            raise ValueError(
-                "Column offsets buffer must have 2 or 3 buffers, "
-                f"but has {n} buffers: {array.buffers()}"
-            )
+        return None

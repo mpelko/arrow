@@ -19,7 +19,6 @@ from __future__ import annotations
 from typing import (
     Any,
     Iterable,
-    Optional,
     Sequence,
 )
 
@@ -174,7 +173,7 @@ class _PyArrowDataFrame:
         )
 
     def get_chunks(
-        self, n_chunks: Optional[int] = None
+        self, n_chunks: int | None = None
     ) -> Iterable[_PyArrowDataFrame]:
         """
         Return an iterator yielding the chunks.
